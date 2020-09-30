@@ -12,16 +12,17 @@ function Help()
    echo "Syntax: deploy-vsftpd.sh "
    echo "options:"
    echo 
-   echo "-t|--token         Token used to authenticate to openshift."
-   echo "-p|--endpoint      Openshift endpoint. Required"
-   echo "-u|--user          Vsftpd user to create. Default value: admin."
-   echo "-n|--namespace     Project name where vsftpd will be deployed. This parameter is required."
-   echo "-e|--environment   Environment on which the rabbitmq will be deployed, tipically this parameter will have one of the following values: cert, pre or pro. Default value cert."
-   echo "-c|--server        Server name. Default value vsftpdserver."
-   echo "-s|--storageclass  Storage class to be used in the storage claim. Default value shared-gold."
-   echo "-i|--image         Docker image to deploy. Default value registry.global.ccc.srvb.can.paas.cloudcenter.corp/c3alm-sgt/rabbitmq."
-   echo "-v|--volumesize    Volume size. Default value 1Gi."
-   echo "-h|--help          This message."
+   echo "-t|--token          Token used to authenticate to openshift."
+   echo "-p|--endpoint       Openshift endpoint. Required"
+   echo "-u|--user           Vsftpd user to create. Default value: admin."
+   echo "-a|--serviceaccount Service account to run the pod. MUST exits."
+   echo "-n|--namespace      Project name where vsftpd will be deployed. This parameter is required."
+   echo "-e|--environment    Environment on which the rabbitmq will be deployed, tipically this parameter will have one of the following values: cert, pre or pro. Default value cert."
+   echo "-c|--server         Server name. Default value vsftpdserver."
+   echo "-s|--storageclass   Storage class to be used in the storage claim. Default value shared-gold."
+   echo "-i|--image          Docker image to deploy. Default value registry.global.ccc.srvb.can.paas.cloudcenter.corp/c3alm-sgt/rabbitmq."
+   echo "-v|--volumesize     Volume size. Default value 1Gi."
+   echo "-h|--help           This message."
    echo
 }
 
@@ -35,6 +36,7 @@ vsftpdimage=""
 volumesize=""
 environment=""
 token=""
+serviceaccount=""
 
 while [[ $# -gt 0 ]]; do
 	case "$1" in
@@ -53,6 +55,10 @@ while [[ $# -gt 0 ]]; do
 			;;
 		-u|--user)
 			vsftpduser="$2"
+			shift 2
+			;;
+		-a|--serviceaccount)
+			serviceaccount="$2"
 			shift 2
 			;;
 		-s|--storageclass)
@@ -92,10 +98,16 @@ done
 
 namespace="myproject"
 endpoint="https://172.18.44.135:8443"
+serviceaccount="vsftpd"
 
 echo ""
 if [[ "${endpoint:-}" == "" ]]; then
   echo "The endpoint is required! Existing..."
+  exit 1
+fi
+
+if [[ "${serviceaccount:-}" == "" ]]; then
+  echo "The serviceaccount is required! Existing..."
   exit 1
 fi
 
@@ -107,6 +119,7 @@ else
   echo ""
   echo "Using endpoint (${endpoint})"
   echo "Using project (${namespace})"
+  echo "Using serviceaccount (${serviceaccount})"
 fi
 
 if [[ "${servername:-}" == "" ]]; then
@@ -170,8 +183,8 @@ else
   echo
   #read -r -p "Username: " username
   #read -r -s -p "Password: " password
-  username="x973366"
-  password="M@r1n@yc@rl0S16"
+  username=""
+  password=""
   echo
 
   #if ! oc login "${endpoint}" -u "${username}" --password="${password}" --insecure-skip-tls-verify=true > /dev/null 2>&1; then
@@ -201,6 +214,7 @@ then
     -p VOLUME_CLAIM_NAME="${volumeclaimname}" \
     -p VOLUME_SIZE="${volumesize}" \
     -p STORAGE_CLASS_NAME="${storageclass}" \
+    -p SERVICE_ACCOUNT="${serviceaccount}" \
     -p ISTAG="${vsftpdimage}" \
   | \
   oc create -f -
@@ -209,6 +223,7 @@ then
   echo "Run the following commands in order to remove all created objects..."
   echo
   echo "oc delete secret ${servername}-secret"
+  echo "oc delete configmap ${servername}-config"
   echo "oc delete service ${servername}-balancer"
   echo "oc delete statefulset ${servername}"
   echo "oc delete pvc ${volumeclaimname}-${servername}-0"

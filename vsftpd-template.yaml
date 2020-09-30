@@ -208,13 +208,11 @@ objects:
               port: 21
           env:
           - name: FTP_USER
-            value: admin
             valueFrom:
               secretKeyRef:
                 name: ${SERVER_NAME}-secret
                 key: username
           - name: FTP_PASS
-            value: admin
             valueFrom:
               secretKeyRef:
                 name: ${SERVER_NAME}-secret
