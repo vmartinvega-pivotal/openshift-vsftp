@@ -22,7 +22,7 @@ if [ "$PASV_ADDRESS" = "**IPv4**" ]; then
     export PASV_ADDRESS=$(/sbin/ip route|awk '/default/ { print $3 }')
 fi
 
-#echo "pasv_address=${PASV_ADDRESS}" >> /etc/vsftpd/vsftpd.conf
+echo "pasv_address=${PASV_ADDRESS}" >> /etc/vsftpd/vsftpd.conf
 
 # Run vsftpd
 /usr/sbin/vsftpd /etc/vsftpd/vsftpd.conf
