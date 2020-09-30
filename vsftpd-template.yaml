@@ -1,0 +1,158 @@
+apiVersion: v1
+kind: Template
+metadata:
+  name: vsftpd-server
+  annotations:
+    description: "Deploys a vsftpd server"
+    tags: vsftp,ftp
+
+parameters:
+- name: NAMESPACE
+  description: "OpenShift project (current namespace)"
+  required: true
+- name: SERVER_NAME
+  description: "Name for the server to be deployed"
+  required: true
+- name: SERVICE_ACCOUNT
+  description: "Name of the service account to run vsftpd"
+  value: vsftpd
+- name: STORAGE_CLASS_NAME
+  description: "Storage class name to be used"
+  value: shared-gold
+- name: ISTAG
+  description: "Image to deploy"
+  value: registry.global.ccc.srvb.can.paas.cloudcenter.corp/c3alm-sgt/vsftpd
+- name: FTP_USER
+  description: "ftp user to create"
+  value: admin
+- name: FTP_PASS
+  description: "Password securing the user account"
+  generate: expression
+  from: "[a-zA-Z0-9]{16}"
+- name: VOLUME_SIZE
+  description: "Size of the vsftpd data volume"
+  value: 1Gi
+- name: VOLUME_CLAIM_NAME
+  description: "Volume Claim name"
+  required: true
+
+objects:
+
+- apiVersion: v1
+  kind: Secret
+  stringData:
+    username: ${FTP_USER}
+    password: ${FTP_PASS}
+  metadata:
+    name: ${SERVER_NAME}-secret
+  type: Opaque
+
+# Load balancer
+- kind: Service
+  apiVersion: v1
+  metadata:
+    name: ${SERVER_NAME}-balancer
+    labels:
+      app: ${SERVER_NAME}
+      type: LoadBalancer
+  spec:
+    type: ClusterIP
+    ports:
+     - name: ftp21
+       protocol: TCP
+       port: 21
+       targetPort: 21
+     - name: ftp20
+       protocol: TCP
+       port: 20
+       targetPort: 20
+     - name: passiveport1
+       protocol: TCP
+       port: 21100
+       targetPort: 21100
+     - name: passiveport2
+       protocol: TCP
+       port: 21101
+       targetPort: 21101
+     - name: passiveport3
+       protocol: TCP
+       port: 21102
+       targetPort: 21102
+    selector:
+      app: ${SERVER_NAME}
+
+- apiVersion: apps/v1beta1
+  kind: StatefulSet
+  metadata:
+    name: ${SERVER_NAME}
+    labels:
+      app: ${SERVER_NAME}
+  spec:
+    serviceName: ${SERVER_NAME}
+    replicas: 1
+    selector:
+      matchLabels:
+        app: ${SERVER_NAME}
+    template:
+      metadata:
+        labels:
+          app: ${SERVER_NAME}
+      spec:
+        securityContext:
+          runAsUser: 1000
+        serviceAccount: jenkins
+        serviceAccountName: jenkins
+        containers:
+        - name: vsftpd
+          image: ${ISTAG}
+          imagePullPolicy: Always
+          volumeMounts:
+            - name: ${VOLUME_CLAIM_NAME}
+              mountPath: /home/vsftpd
+          ports:
+            - name: tcp21
+              protocol: TCP
+              containerPort: 21
+            - name: tcp20
+              protocol: TCP
+              containerPort: 20
+            - name: passiveport1
+              protocol: TCP
+              containerPort: 21100
+            - name: passiveport2
+              protocol: TCP
+              containerPort: 21101
+            - name: passiveport3
+              protocol: TCP
+              containerPort: 21102
+          livenessProbe:
+            tcpSocket:
+              port: 21
+          readinessProbe:
+            tcpSocket:
+              port: 21
+          env:
+          - name: FTP_USER
+            value: admin
+            #valueFrom:
+            #  secretKeyRef:
+            #    name: ${SERVER_NAME}-secret
+            #    key: username
+          - name: FTP_PASS
+            value: admin
+            #valueFrom:
+            #  secretKeyRef:
+            #    name: ${SERVER_NAME}-secret
+            #    key: password
+    volumeClaimTemplates:
+    - metadata:
+        name: ${VOLUME_CLAIM_NAME}
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: ${VOLUME_SIZE}
+        storageClassName: ${STORAGE_CLASS_NAME}
+
+  
