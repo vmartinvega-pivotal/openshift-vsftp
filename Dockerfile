@@ -1,8 +1,8 @@
 FROM centos:7
 
-ARG http_proxy=http://proxyapps.gsnet.corp:80/
-ARG https_proxy=http://proxyapps.gsnet.corp:80/
-ARG no_proxy=localhost,127.0.0.1,*.corp
+#ARG http_proxy=http://proxyapps.gsnet.corp:80/
+#ARG https_proxy=http://proxyapps.gsnet.corp:80/
+#ARG no_proxy=localhost,127.0.0.1,*.corp
 #ARG USER_ID=1000
 #ARG GROUP_ID=1000
 
