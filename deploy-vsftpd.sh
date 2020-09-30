@@ -90,6 +90,9 @@ while [[ $# -gt 0 ]]; do
 	esac
 done
 
+namespace="myproject"
+endpoint="https://172.18.44.135:8443"
+
 echo ""
 if [[ "${endpoint:-}" == "" ]]; then
   echo "The endpoint is required! Existing..."
@@ -171,12 +174,13 @@ else
   password="M@r1n@yc@rl0S16"
   echo
 
-  if ! oc login "${endpoint}" -u "${username}" --password="${password}" --insecure-skip-tls-verify=true > /dev/null 2>&1; then
-    echo "ERROR: Could not login to ${endpoint} with user ${username}"
-    exit 1
-  else  
-    echo "Login successful."
-  fi
+  #if ! oc login "${endpoint}" -u "${username}" --password="${password}" --insecure-skip-tls-verify=true > /dev/null 2>&1; then
+  #  echo "ERROR: Could not login to ${endpoint} with user ${username}"
+  #  exit 1
+  #else  
+  #  echo "Login successful."
+  #fi
+  oc login -u system:admin
 fi
 
 echo

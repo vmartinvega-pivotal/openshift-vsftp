@@ -1,4 +1,4 @@
-# vsftpd
+# FTP Server: vsftpd
 
 This Docker container implements a vsftpd server, with the following features:
 
@@ -6,11 +6,6 @@ This Docker container implements a vsftpd server, with the following features:
  * vsftpd 3.0
  * Virtual users
  * Passive mode
-
-      securityContext:
-        runAsUser: 1000
-      serviceAccount: jenkins
-      serviceAccountName: jenkins
 
 https://github.com/ome/vsftpd-anonymous-upload-docker/blob/master/Dockerfile
 
@@ -21,22 +16,24 @@ oc adm policy add-scc-to-user anyuid system:serviceaccount:myproject:mysvcacct
 
 oc adm policy add-scc-to-user anyuid system:serviceaccount:global-alm-test-pre:vsftpd
 
+oc adm policy add-scc-to-user anyuid system:serviceaccount:myproject:vsftpd
+
 ./deploy-vsftpd.sh --endpoint https://api.ocp.ccc.srvb.cn2.paas.cloudcenter.corp:8443 --namespace global-alm-test-pre
 
 ## Push
 docker push registry.global.ccc.srvb.can.paas.cloudcenter.corp/c3alm-sgt/vsftpd
 
- ## Build
+## Build
 ```
 docker build -t registry.global.ccc.srvb.can.paas.cloudcenter.corp/c3alm-sgt/vsftpd .
 ```
 
-### Installation from [Docker registry hub](https://registry.hub.docker.com/r/fauria/vsftpd/).
+### Installation from Docker
 
 You can download the image with the following command:
 
 ```bash
-docker pull fauria/vsftpd
+docker pull registry.global.ccc.srvb.can.paas.cloudcenter.corp/c3alm-sgt/vsftpd
 ```
 
 Environment variables
@@ -58,115 +55,21 @@ This image uses environment variables to allow the configuration of some paramet
 
 ----
 
-* Variable name: `PASV_ADDRESS_ENABLE`
-* Default value: NO
-* Accepted values: <NO|YES>
-* Description: Enables / Disables Passive Mode
-
-----
-
-* Variable name: `PASV_ADDRESS_RESOLVE`
-* Default value: YES
-* Accepted values: <NO|YES>
-* Description: Set to YES if you want to use a hostname (as opposed to IP address) in the `PASV_ADDRESS` option.
-
-----
-
-* Variable name: `PASV_ADDRESS`
-* Default value: Docker host IP / Hostname.
-* Accepted values: Any IPv4 address or Hostname (see PASV_ADDRESS_RESOLVE).
-* Description: If you don't specify an IP address to be used in passive mode, the routed IP address of the Docker host will be used. Bear in mind that this could be a local address.
-
-----
-
-* Variable name: `PASV_ADDR_RESOLVE`
-* Default value: NO.
-* Accepted values: YES or NO.
-* Description: Set to YES if you want to use a hostname (as opposed to IP address) in the PASV_ADDRESS option.
-
-----
-
-* Variable name: `PASV_ENABLE`
-* Default value: YES.
-* Accepted values: YES or NO.
-* Description: Set to NO if you want to disallow the PASV method of obtaining a data connection.
-
-----
-
-* Variable name: `PASV_MIN_PORT`
-* Default value: 21100.
-* Accepted values: Any valid port number.
-* Description: This will be used as the lower bound of the passive mode port range. Remember to publish your ports with `docker -p` parameter.
-
-----
-
-* Variable name: `PASV_MAX_PORT`
-* Default value: 21110.
-* Accepted values: Any valid port number.
-* Description: This will be used as the upper bound of the passive mode port range. It will take longer to start a container with a high number of published ports.
-
-----
-
-* Variable name: `XFERLOG_STD_FORMAT`
-* Default value: NO.
-* Accepted values: YES or NO.
-* Description: Set to YES if you want the transfer log file to be written in standard xferlog format.
-
-----
-
-* Variable name: `FILE_OPEN_MODE`
-* Default value: 0666.
-* Accepted values: File system permissions.
-* Description: The permissions with which uploaded files are created. Umasks are applied on top of this value. You may wish to change to 0777 if you want uploaded files to be executable.
-
-----
-
-* Variable name: `LOCAL_UMASK`
-* Default value: 077.
-* Accepted values: File system permissions.
-* Description: The value that the umask for file creation is set to for local users. NOTE! If you want to specify octal values, remember the "0" prefix otherwise the value will be treated as a base 10 integer!
-
-----
-
-* Variable name: `REVERSE_LOOKUP_ENABLE`
-* Default value: YES.
-* Accepted values: YES or NO.
-* Description: Set to NO if you want to avoid performance issues where a name server doesn't respond to a reverse lookup.
-
-----
-
 Exposed ports and volumes
 ----
 
-The image exposes ports `20` and `21`. Also, exports two volumes: `/home/vsftpd`, which contains users home directories, and `/var/log/vsftpd`, used to store logs.
-
-When sharing a homes directory between the host and the container (`/home/vsftpd`) the owner user id and group id should be 14 and 50 respectively. This corresponds to ftp user and ftp group on the container, but may match something else on the host.
+The image exposes ports `20`, `21`, `21100`, `21101` and `21102`. Also, exports one volumes: `/home/vsftpd`, which contains users home directories.
 
 Use cases
 ----
 
-1) Create a temporary container for testing purposes:
-
-```bash
-  docker run --rm fauria/vsftpd
-```
-
-2) Create a container in active mode using the default user account, with a binded data directory:
-
-```bash
-docker run -d -p 21:21 -v /my/data/directory:/home/vsftpd --name vsftpd fauria/vsftpd
-# see logs for credentials:
-docker logs vsftpd
-```
-
-3) Create a **production container** with a custom user account, binding a data directory and enabling both active and passive mode:
+1) Create a **production container** with a custom user account, binding a data directory and enabling both active and passive mode:
 
 ```bash
 docker run -d -v /my/data/directory:/home/vsftpd \
--p 20:20 -p 21:21 -p 21100-21110:21100-21110 \
+-p 20:20 -p 21:21 -p 21100-21102:21100-21100 \
 -e FTP_USER=myuser -e FTP_PASS=mypass \
--e PASV_ADDRESS=127.0.0.1 -e PASV_MIN_PORT=21100 -e PASV_MAX_PORT=21110 \
---name vsftpd --restart=always fauria/vsftpd
+--name vsftpd --restart=always registry.global.ccc.srvb.can.paas.cloudcenter.corp/c3alm-sgt/vsftpd
 ```
 
 4) Manually add a new FTP user to an existing container:

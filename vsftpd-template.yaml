@@ -14,7 +14,7 @@ parameters:
   description: "Name for the server to be deployed"
   required: true
 - name: SERVICE_ACCOUNT
-  description: "Name of the service account to run vsftpd"
+  description: "Name of the service account to run vsftpd. It MUST exits."
   value: vsftpd
 - name: STORAGE_CLASS_NAME
   description: "Storage class name to be used"
@@ -56,7 +56,8 @@ objects:
       app: ${SERVER_NAME}
       type: LoadBalancer
   spec:
-    type: ClusterIP
+    #loadBalancerIP: 172.29.0.1
+    type: LoadBalancer
     ports:
      - name: ftp21
        protocol: TCP
@@ -80,6 +81,76 @@ objects:
        targetPort: 21102
     selector:
       app: ${SERVER_NAME}
+- apiVersion: v1
+  kind: ConfigMap
+  metadata:
+    name: ${SERVER_NAME}-config
+  data:
+    vsftpd.conf: |
+      # Run in the foreground to keep the container running:
+      background=NO
+
+      # Allow anonymous FTP? (Beware - allowed by default if you comment this out).
+      anonymous_enable=NO
+
+      # Uncomment this to allow local users to log in.
+      local_enable=YES
+ 
+      # Enable virtual users
+      guest_enable=YES
+
+      # Virtual users will use the same permissions as anonymous
+      virtual_use_local_privs=YES
+
+      # Uncomment this to enable any form of FTP write command.
+      write_enable=YES
+
+      # PAM file name
+      pam_service_name=vsftpd_virtual
+
+      # Home Directory for virtual users
+      user_sub_token=$USER
+      local_root=/home/vsftpd/$USER
+
+      # You may specify an explicit list of local users to chroot() to their home
+      # directory. If chroot_local_user is YES, then this list becomes a list of
+      # users to NOT chroot().
+      chroot_local_user=YES
+
+      # Workaround chroot check.
+      # See https://www.benscobie.com/fixing-500-oops-vsftpd-refusing-to-run-with-writable-root-inside-chroot/
+      # and http://serverfault.com/questions/362619/why-is-the-chroot-local-user-of-vsftpd-insecure
+      allow_writeable_chroot=YES
+
+      # Hide ids from user
+      hide_ids=YES
+
+      # Enable logging
+      xferlog_enable=YES
+      xferlog_file=/var/log/vsftpd/vsftpd.log
+
+      # Enable active mode
+      port_enable=YES
+      connect_from_port_20=YES
+      ftp_data_port=20
+
+      # Disable seccomp filter sanboxing
+      seccomp_sandbox=NO
+
+      file_open_mode=0666
+      local_umask=077
+      reverse_lookup_enable=YES
+      xferlog_std_format=NO
+      pasv_enable=YES
+      pasv_addr_resolve=NO
+      pasv_min_port=21100
+      pasv_max_port=21102
+
+    vsftpd_virtual: |
+      #%PAM-1.0
+      auth	required	pam_userdb.so	db=/etc/vsftpd/virtual_users
+      account	required	pam_userdb.so	db=/etc/vsftpd/virtual_users
+      session	required	pam_loginuid.so
 
 - apiVersion: apps/v1beta1
   kind: StatefulSet
@@ -98,17 +169,21 @@ objects:
         labels:
           app: ${SERVER_NAME}
       spec:
-        securityContext:
-          runAsUser: 1000
-        serviceAccount: jenkins
-        serviceAccountName: jenkins
+        serviceAccount: ${SERVICE_ACCOUNT}
+        serviceAccountName: ${SERVICE_ACCOUNT}
         containers:
         - name: vsftpd
           image: ${ISTAG}
-          imagePullPolicy: Always
+          imagePullPolicy: IfNotPresent
           volumeMounts:
             - name: ${VOLUME_CLAIM_NAME}
               mountPath: /home/vsftpd
+            - name: config-volume
+              mountPath: /etc/vsftpd/vsftpd.conf
+              subPath: vsftpd.conf
+            - name: virtual-users-volume
+              mountPath: /etc/pam.d/vsftpd_virtual
+              subPath: vsftpd_virtual
           ports:
             - name: tcp21
               protocol: TCP
@@ -134,16 +209,39 @@ objects:
           env:
           - name: FTP_USER
             value: admin
-            #valueFrom:
-            #  secretKeyRef:
-            #    name: ${SERVER_NAME}-secret
-            #    key: username
+            valueFrom:
+              secretKeyRef:
+                name: ${SERVER_NAME}-secret
+                key: username
           - name: FTP_PASS
             value: admin
-            #valueFrom:
-            #  secretKeyRef:
-            #    name: ${SERVER_NAME}-secret
-            #    key: password
+            valueFrom:
+              secretKeyRef:
+                name: ${SERVER_NAME}-secret
+                key: password
+        volumes:
+        - name: config-volume
+          configMap:
+            name: ${SERVER_NAME}-config
+            items:
+            - key: vsftpd.conf
+              path: vsftpd.conf
+        - name: virtual-users-volume
+          configMap:
+            name: ${SERVER_NAME}-config
+            items:
+            - key: vsftpd_virtual
+              path: vsftpd_virtual
+    #volumeClaimTemplates:
+    #- metadata:
+    #    name: ${VOLUME_CLAIM_NAME}
+    #  spec:
+    #    accessModes:
+    #      - ReadWriteOnce
+    #    resources:
+    #      requests:
+    #        storage: ${VOLUME_SIZE}
+    #    storageClassName: ${STORAGE_CLASS_NAME}
     volumeClaimTemplates:
     - metadata:
         name: ${VOLUME_CLAIM_NAME}
@@ -153,6 +251,5 @@ objects:
         resources:
           requests:
             storage: ${VOLUME_SIZE}
-        storageClassName: ${STORAGE_CLASS_NAME}
 
   

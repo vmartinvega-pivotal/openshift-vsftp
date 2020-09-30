@@ -17,12 +17,9 @@ chown -R ftp:ftp /home/vsftpd/
 echo -e "${FTP_USER}\n${FTP_PASS}" > /etc/vsftpd/virtual_users.txt
 /usr/bin/db_load -T -t hash -f /etc/vsftpd/virtual_users.txt /etc/vsftpd/virtual_users.db
 
-# Set passive mode parameters:
-if [ "$PASV_ADDRESS" = "**IPv4**" ]; then
-    export PASV_ADDRESS=$(/sbin/ip route|awk '/default/ { print $3 }')
-fi
+export PASV_ADDRESS=$(/sbin/ip route|awk '/default/ { print $3 }')
 
-#echo "pasv_address=${PASV_ADDRESS}" >> /etc/vsftpd/vsftpd.conf
+echo "pasv_address=${PASV_ADDRESS}" >> /etc/vsftpd/vsftpd.conf
 
 # Run vsftpd
 /usr/sbin/vsftpd /etc/vsftpd/vsftpd.conf
