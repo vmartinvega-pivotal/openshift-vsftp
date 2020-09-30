@@ -167,8 +167,8 @@ else
   echo
   #read -r -p "Username: " username
   #read -r -s -p "Password: " password
-  username="x973366"
-  password="M@r1n@yc@rl0S16"
+  username=""
+  password=""
   echo
 
   if ! oc login "${endpoint}" -u "${username}" --password="${password}" --insecure-skip-tls-verify=true > /dev/null 2>&1; then
