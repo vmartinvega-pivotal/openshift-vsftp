@@ -7,18 +7,26 @@ This Docker container implements a vsftpd server, with the following features:
  * Virtual users
  * Passive mode
 
-https://github.com/ome/vsftpd-anonymous-upload-docker/blob/master/Dockerfile
-
-
-docker run --rm -p 20:20 -p 21:21 -p 21100-21102:21100-21102 -e FTP_PASS=admin -v /home/mestebangutierrez/development/ftp:/home/vsftpd registry.global.ccc.srvb.can.paas.cloudcenter.corp/c3alm-sgt/vsftpd
-
+## User to run the POD
+* Login to openshift
+```
+oc login -n myproject
+```
+* Create a serviceaccount in the openshift project
+```
+oc create serviceaccount mysvcacct
+```
+* Grant permissions to the serviceaccount (the user logged needs admin permissions)
+```
 oc adm policy add-scc-to-user anyuid system:serviceaccount:myproject:mysvcacct
+```
 
-oc adm policy add-scc-to-user anyuid system:serviceaccount:global-alm-test-pre:vsftpd
-
-oc adm policy add-scc-to-user anyuid system:serviceaccount:myproject:vsftpd
+## Deploy
 
 ./deploy-vsftpd.sh --endpoint https://api.ocp.ccc.srvb.cn2.paas.cloudcenter.corp:8443 --namespace global-alm-test-pre
+
+
+The serviceaccount created will be used when deploying the service (param --serviceaccount)
 
 ## Push
 docker push registry.global.ccc.srvb.can.paas.cloudcenter.corp/c3alm-sgt/vsftpd
