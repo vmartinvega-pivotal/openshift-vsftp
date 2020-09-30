@@ -7,7 +7,23 @@ This Docker container implements a vsftpd server, with the following features:
  * Virtual users
  * Passive mode
 
-## User to run the POD
+## Build the image
+Clone the repo and run the following command
+
+```
+docker build -t registry.global.ccc.srvb.can.paas.cloudcenter.corp/c3alm-sgt/vsftpd .
+```
+
+## Push the image
+Push the docker image once it is built
+
+```
+docker push registry.global.ccc.srvb.can.paas.cloudcenter.corp/c3alm-sgt/vsftpd
+```
+
+## Run in Openshift
+
+### Create a serviceaccount to run the container
 * Login to openshift
 ```
 oc login -n myproject
@@ -28,21 +44,6 @@ oc adm policy add-scc-to-user anyuid system:serviceaccount:myproject:mysvcacct
 
 The serviceaccount created will be used when deploying the service (param --serviceaccount)
 
-## Push
-docker push registry.global.ccc.srvb.can.paas.cloudcenter.corp/c3alm-sgt/vsftpd
-
-## Build
-```
-docker build -t registry.global.ccc.srvb.can.paas.cloudcenter.corp/c3alm-sgt/vsftpd .
-```
-
-### Installation from Docker
-
-You can download the image with the following command:
-
-```bash
-docker pull registry.global.ccc.srvb.can.paas.cloudcenter.corp/c3alm-sgt/vsftpd
-```
 
 Environment variables
 ----
